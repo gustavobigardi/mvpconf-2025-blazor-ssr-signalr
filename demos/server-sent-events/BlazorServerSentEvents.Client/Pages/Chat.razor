@@ -1,0 +1,55 @@
+﻿@page "/chat"
+@using System.Net.ServerSentEvents
+@using System.Text.Json
+@using BlazorServerSentEvents.Client.Model
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+@inject HttpClient Http
+
+<h3>Chat</h3>
+
+<input @bind="userInput" placeholder="Your name" class="form-control" />
+<br />
+<input @bind="messageInput" placeholder="Your message" class="form-control" />
+<br />
+
+<div style="text-align: right">
+  <button @onclick="Send" class="btn btn-primary">Send</button>
+</div>
+
+<ul>
+  @foreach (var message in messages)
+  {
+    <li>@message</li>
+  }
+</ul>
+
+@code {
+  private string? userInput;
+  private string? messageInput;
+  private List<string> messages = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    using var stream = await Http.GetStreamAsync("api/message");
+    await foreach (SseItem<Message?> item in SseParser.Create(stream, (eventType, bytes) =>
+    JsonSerializer.Deserialize<Message>(bytes)).EnumerateAsync())
+    {
+      if (item.Data is not null)
+      {
+        messages.Add($"{item.Data.Sender}: {item.Data.Text}");
+        StateHasChanged();
+      }
+    }
+  }
+
+  private async Task Send()
+  {
+    await Http.PostAsJsonAsync("api/message", new Message
+    {
+      Sender = userInput ?? "Anonymous",
+      Text = messageInput ?? string.Empty
+    });
+  }
+}
