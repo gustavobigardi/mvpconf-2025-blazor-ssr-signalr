@@ -31,6 +31,7 @@
     {
         hubConnection = new HubConnectionBuilder()
             .WithUrl("https://localhost:5001/chathub")
+            .WithAutomaticReconnect()
             .Build();
 
         hubConnection.On<string, string>("SendToAllClient", (user, message) =>
